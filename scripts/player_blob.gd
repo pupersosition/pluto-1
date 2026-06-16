@@ -1,0 +1,158 @@
+extends CharacterBody2D
+
+const BASE_ACCELERATION := 1100.0
+const BASE_DRAG := 5.0
+const BASE_GRAVITY := 260.0
+const GROWTH_PER_MASS := 0.055
+const DEFEAT_MASS_THRESHOLD := 9.0
+const RECOVERY_ACCEL_THRESHOLD := 360.0
+const FLOOR_GRACE_TIME := 1.0
+const BLOB_RADIUS := 16.0
+const BLOB_POINT_COUNT := 16
+const MASS_RELEASE_AMOUNT := 1.6
+
+var mass: float = 1.0
+var floor_contact_time: float = 0.0
+var input_enabled: bool = true
+var annihilation_perk_ready: bool = false
+var mass_release_perk_ready: bool = false
+
+var _start_position := Vector2.ZERO
+var _wobble_time := 0.0
+var _wobble_impulse := 0.0
+var _last_velocity := Vector2.ZERO
+
+@onready var blob_visual: Polygon2D = $BlobVisual
+
+
+func _ready() -> void:
+	_start_position = global_position
+	_update_visual_scale()
+	_update_blob_visual(0.0, Vector2.ZERO)
+
+
+func _physics_process(delta: float) -> void:
+	_wobble_time += delta
+
+	if not input_enabled:
+		velocity = velocity.move_toward(Vector2.ZERO, BASE_DRAG * 100.0 * delta)
+		move_and_slide()
+		_update_blob_visual(delta, Vector2.ZERO)
+		return
+
+	var input_vector := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var control_factor := 1.0 / sqrt(1.0 + (mass - 1.0) * 0.45)
+	var gravity_factor := 1.0 + (mass - 1.0) * 0.035
+
+	velocity += input_vector * BASE_ACCELERATION * control_factor * delta
+	velocity.y += BASE_GRAVITY * gravity_factor * delta
+
+	var drag_strength := BASE_DRAG if input_vector.is_zero_approx() else BASE_DRAG * 0.35
+	velocity = velocity.lerp(Vector2.ZERO, minf(drag_strength * delta, 1.0))
+
+	move_and_slide()
+
+	if is_on_floor():
+		floor_contact_time += delta
+		_wobble_impulse = maxf(_wobble_impulse, minf(absf(velocity.y) / 850.0, 0.45))
+	else:
+		floor_contact_time = 0.0
+
+	var acceleration_delta := (velocity - _last_velocity).length()
+	_wobble_impulse = maxf(_wobble_impulse, minf(acceleration_delta / 900.0, 0.28))
+	_last_velocity = velocity
+	_update_blob_visual(delta, input_vector)
+
+
+func absorb_dot(amount: float = 1.0) -> void:
+	mass += amount
+	_wobble_impulse = minf(_wobble_impulse + 0.38, 1.15)
+	_update_visual_scale()
+
+
+func grant_annihilation_perk() -> void:
+	annihilation_perk_ready = true
+	_wobble_impulse = minf(_wobble_impulse + 0.5, 1.15)
+
+
+func has_annihilation_perk() -> bool:
+	return annihilation_perk_ready
+
+
+func consume_annihilation_perk() -> bool:
+	if not annihilation_perk_ready:
+		return false
+	annihilation_perk_ready = false
+	return true
+
+
+func grant_mass_release_perk() -> void:
+	mass_release_perk_ready = true
+	_wobble_impulse = minf(_wobble_impulse + 0.35, 1.15)
+
+
+func has_mass_release_perk() -> bool:
+	return mass_release_perk_ready
+
+
+func consume_mass_release_perk() -> bool:
+	if not mass_release_perk_ready:
+		return false
+	mass_release_perk_ready = false
+	return true
+
+
+func release_mass() -> void:
+	mass = maxf(1.0, mass - MASS_RELEASE_AMOUNT)
+	_wobble_impulse = minf(_wobble_impulse + 0.45, 1.15)
+	_update_visual_scale()
+
+
+func reset_blob(position_value: Vector2) -> void:
+	mass = 1.0
+	floor_contact_time = 0.0
+	input_enabled = true
+	annihilation_perk_ready = false
+	mass_release_perk_ready = false
+	velocity = Vector2.ZERO
+	_last_velocity = Vector2.ZERO
+	_wobble_impulse = 0.0
+	global_position = position_value
+	_update_visual_scale()
+	_update_blob_visual(0.0, Vector2.ZERO)
+
+
+func set_input_enabled(enabled: bool) -> void:
+	input_enabled = enabled
+
+
+func is_defeated() -> bool:
+	if not is_on_floor() or floor_contact_time < FLOOR_GRACE_TIME:
+		return false
+
+	var upward_recovery := BASE_ACCELERATION / sqrt(1.0 + (mass - 1.0) * 0.45) - BASE_GRAVITY * (1.0 + (mass - 1.0) * 0.035)
+	return mass >= DEFEAT_MASS_THRESHOLD and upward_recovery < RECOVERY_ACCEL_THRESHOLD
+
+
+func _update_visual_scale() -> void:
+	scale = Vector2.ONE * (1.0 + (mass - 1.0) * GROWTH_PER_MASS)
+
+
+func _update_blob_visual(delta: float, input_vector: Vector2) -> void:
+	_wobble_impulse = move_toward(_wobble_impulse, 0.06 if velocity.length() > 20.0 else 0.0, delta * 1.8)
+
+	var movement_direction := velocity.normalized() if velocity.length() > 1.0 else input_vector.normalized()
+	var movement_angle := movement_direction.angle() if not movement_direction.is_zero_approx() else 0.0
+	var speed_stretch := clampf(velocity.length() / 850.0, 0.0, 0.22)
+	var wobble_amount := 0.06 + _wobble_impulse * 0.22
+	var points := PackedVector2Array()
+
+	for index in BLOB_POINT_COUNT:
+		var angle := (float(index) / float(BLOB_POINT_COUNT)) * PI * 2.0
+		var axis_stretch := cos(2.0 * (angle - movement_angle)) * speed_stretch
+		var ripple := sin(_wobble_time * 8.0 + float(index) * 1.35) * wobble_amount
+		var secondary_ripple := sin(_wobble_time * 5.0 - float(index) * 0.9) * wobble_amount * 0.45
+		var radius := BLOB_RADIUS * (1.0 + axis_stretch + ripple + secondary_ripple)
+		points.append(Vector2(cos(angle), sin(angle)) * radius)
+
+	blob_visual.polygon = points

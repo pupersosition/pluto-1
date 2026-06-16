@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/annihilation_star.gd" id="1_star"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_star"]
+radius = 22.0
+
+[node name="AnnihilationStar" type="Area2D"]
+monitoring = true
+script = ExtResource("1_star")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_star")

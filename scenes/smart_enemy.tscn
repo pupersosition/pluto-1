@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/smart_enemy.gd" id="1_smart"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_smart"]
+radius = 7.0
+
+[node name="SmartEnemy" type="Area2D"]
+monitoring = true
+script = ExtResource("1_smart")
+
+[node name="DotVisual" type="Polygon2D" parent="."]
+color = Color(1, 0.08, 0.08, 1)
+polygon = PackedVector2Array(0, -7, 5, -5, 7, 0, 5, 5, 0, 7, -5, 5, -7, 0, -5, -5)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_smart")
