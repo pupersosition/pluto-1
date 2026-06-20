@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/space_warp.gd" id="1_space_warp"]
+
+[node name="SpaceWarp" type="Node2D"]
+script = ExtResource("1_space_warp")
