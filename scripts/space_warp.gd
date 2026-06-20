@@ -5,15 +5,17 @@ signal closed(warp: Node)
 
 const PULL_RADIUS := 1400.0
 const CORE_RADIUS := 24.0
-const PLAYER_PULL_STRENGTH := 1750.0
-const ENEMY_PULL_STRENGTH := 3600.0
-const POWERUP_PULL_STRENGTH := 2800.0
-const MAX_PLAYER_PULL := 1250.0
-const PULL_FALLOFF_POWER := 1.75
-const MIN_DISTANCE_PULL_FACTOR := 0.12
-const LIFETIME_RAMP_IN_FRACTION := 0.32
+const PLAYER_PULL_STRENGTH := 1450.0
+const ENEMY_PULL_STRENGTH := 3000.0
+const POWERUP_PULL_STRENGTH := 2200.0
+const MAX_PLAYER_PULL := 900.0
+const MAX_ENEMY_PULL := 2200.0
+const MAX_POWERUP_PULL := 1600.0
+const PULL_FALLOFF_POWER := 2.35
+const MIN_DISTANCE_PULL_FACTOR := 0.035
+const LIFETIME_RAMP_IN_FRACTION := 0.46
 const LIFETIME_RAMP_OUT_FRACTION := 0.24
-const LIFETIME_START_MULTIPLIER := 0.35
+const LIFETIME_START_MULTIPLIER := 0.12
 const LIFETIME_END_MULTIPLIER := 0.18
 const PIXEL_COUNT := 26
 const RING_COUNT := 4
@@ -146,7 +148,7 @@ func _apply_to_enemies(main: Node, delta: float) -> void:
 		if distance <= CORE_RADIUS:
 			enemy_node.queue_free()
 			continue
-		_apply_pull(enemy_node, ENEMY_PULL_STRENGTH, distance, delta)
+		_apply_pull(enemy_node, ENEMY_PULL_STRENGTH, distance, delta, MAX_ENEMY_PULL)
 
 
 func _apply_to_powerups(main: Node, delta: float) -> void:
@@ -163,7 +165,7 @@ func _apply_to_powerups(main: Node, delta: float) -> void:
 		if distance <= CORE_RADIUS:
 			powerup_node.queue_free()
 			continue
-		_apply_direct_pull(powerup_node, POWERUP_PULL_STRENGTH, distance, delta)
+		_apply_direct_pull(powerup_node, POWERUP_PULL_STRENGTH, distance, delta, MAX_POWERUP_PULL)
 
 
 func _apply_pull(node: Node2D, strength: float, distance: float, delta: float, max_pull: float = -1.0) -> void:
@@ -176,8 +178,10 @@ func _apply_pull(node: Node2D, strength: float, distance: float, delta: float, m
 	node.call("apply_external_force", pull_direction * pull_amount, delta)
 
 
-func _apply_direct_pull(node: Node2D, strength: float, distance: float, delta: float) -> void:
+func _apply_direct_pull(node: Node2D, strength: float, distance: float, delta: float, max_pull: float = -1.0) -> void:
 	var pull_amount := _calculate_pull_amount(strength, distance)
+	if max_pull > 0.0:
+		pull_amount = minf(pull_amount, max_pull)
 	var pull_direction := node.global_position.direction_to(global_position)
 	node.global_position += pull_direction * pull_amount * delta
 

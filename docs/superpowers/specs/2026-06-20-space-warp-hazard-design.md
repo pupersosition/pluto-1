@@ -90,7 +90,7 @@ In `space_warp.gd`:
 - `POWERUP_PULL_STRENGTH`
 - visual animation constants
 
-The updated feel should be arena-wide and aggressive: the player always feels the warp, must actively fight it, the pull becomes dangerous near the center, and escape is still possible because player pull is capped and the warp weakens near the end of its life. While the player is being sucked in, the blob body stretches toward the warp, wobbles harder, and disappears when consumed by the core.
+The updated feel should be arena-wide and aggressive without being instant: the player can feel the warp across the arena, must actively fight it near the center, and escape is still possible because far-field pull is weak, player pull is capped, and the warp ramps in slowly before weakening near the end of its life. Enemies and powerups are pulled harder than the player but are also capped so they do not vanish immediately from across the arena. While the player is being sucked in, the blob body stretches toward the warp, wobbles harder, and disappears when consumed by the core.
 
 ## Visual Design
 
