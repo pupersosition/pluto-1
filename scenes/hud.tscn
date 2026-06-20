@@ -1,9 +1,60 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/hud.gd" id="1_hud"]
+[ext_resource type="Script" path="res://scripts/start_screen_art.gd" id="2_start_art"]
 
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1_hud")
+
+[node name="StartScreen" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Dim" type="ColorRect" parent="StartScreen"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.88)
+
+[node name="PixelArt" type="Control" parent="StartScreen"]
+layout_mode = 0
+offset_right = 1152.0
+offset_bottom = 648.0
+mouse_filter = 2
+script = ExtResource("2_start_art")
+
+[node name="TitleLabel" type="Label" parent="StartScreen"]
+offset_left = 376.0
+offset_top = 120.0
+offset_right = 776.0
+offset_bottom = 184.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 48
+text = "PLUTO-1"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ControlsLabel" type="Label" parent="StartScreen"]
+offset_left = 306.0
+offset_top = 220.0
+offset_right = 846.0
+offset_bottom = 372.0
+theme_override_colors/font_color = Color(0.86, 0.86, 0.86, 1)
+text = "CONTROLS\nArrow keys / D-pad: move the blob\nSpace: activate collected perk\nR: restart after collapse\n\nCollect stars and black holes for perks.\nAvoid growing too heavy."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="StartButton" type="Button" parent="StartScreen"]
+offset_left = 486.0
+offset_top = 420.0
+offset_right = 666.0
+offset_bottom = 472.0
+text = "START GAME"
 
 [node name="TimeLabel" type="Label" parent="."]
 offset_left = 16.0
@@ -38,6 +89,15 @@ offset_right = 390.0
 offset_bottom = 140.0
 theme_override_colors/font_color = Color(0.35, 0.9, 1, 1)
 text = "MASS RELEASE READY - SPACE"
+
+[node name="DeathModeLabel" type="Label" parent="."]
+visible = false
+offset_left = 16.0
+offset_top = 140.0
+offset_right = 390.0
+offset_bottom = 172.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "DEATH MODE READY - SPACE"
 
 [node name="RestartLabel" type="Label" parent="."]
 visible = false

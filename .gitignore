@@ -1,3 +1,14 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# Exported builds
+build/
+
+# Agent planning artifacts
+docs/plans/
+docs/superpowers/plans/
+
+# Local/temp files
+.DS_Store
+tmp/

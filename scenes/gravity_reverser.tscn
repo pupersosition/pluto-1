@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/gravity_reverser.gd" id="1_gravity"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_gravity"]
+radius = 28.0
+
+[node name="GravityReverser" type="Area2D"]
+monitoring = true
+script = ExtResource("1_gravity")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_gravity")

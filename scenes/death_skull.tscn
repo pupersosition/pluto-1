@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/death_skull.gd" id="1_death_skull"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_death_skull"]
+radius = 18.0
+
+[node name="DeathSkull" type="Area2D"]
+monitoring = true
+script = ExtResource("1_death_skull")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_death_skull")

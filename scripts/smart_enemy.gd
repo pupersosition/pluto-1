@@ -9,6 +9,7 @@ const CLOUD_MIN_WAIT := 3.0
 const CLOUD_MAX_WAIT := 6.5
 const CLOUD_MIN_COUNT := 5
 const CLOUD_MAX_COUNT := 9
+const DEATH_MODE_FLEE_SPEED_MULTIPLIER := 0.55
 
 var target: Node2D
 var speed: float = 165.0
@@ -48,14 +49,15 @@ func _physics_process(delta: float) -> void:
 		_spawn_white_cloud()
 
 	if target != null and is_instance_valid(target):
-		var desired_direction: Vector2 = global_position.direction_to(target.global_position)
+		var desired_direction: Vector2 = target.global_position.direction_to(global_position) if _is_target_death_mode_active() else global_position.direction_to(target.global_position)
 		var turn_amount: float = clampf(TURN_RATE * delta, 0.0, 1.0)
 		_direction = _direction.lerp(desired_direction, turn_amount).normalized()
 	elif _direction.is_zero_approx():
 		queue_free()
 		return
 
-	global_position += _direction * speed * delta
+	var movement_speed: float = speed * DEATH_MODE_FLEE_SPEED_MULTIPLIER if _is_target_death_mode_active() else speed
+	global_position += _direction * movement_speed * delta
 	rotation = _direction.angle()
 
 	if ARENA_RECT.has_point(global_position):
@@ -67,6 +69,11 @@ func _physics_process(delta: float) -> void:
 func _process(delta: float) -> void:
 	var pulse: float = (sin(_lifetime * 9.0) + 1.0) * 0.5
 	visual.scale = Vector2.ONE * (1.0 + pulse * 0.1)
+	visual.color = Color(0, 0, 0, 1) if _is_target_death_mode_active() else Color(1, 0.08, 0.08, 1)
+
+
+func _is_target_death_mode_active() -> bool:
+	return target != null and is_instance_valid(target) and target.has_method("is_death_mode_active") and bool(target.call("is_death_mode_active"))
 
 
 func _spawn_white_cloud() -> void:

@@ -10,12 +10,16 @@ const FLOOR_GRACE_TIME := 1.0
 const BLOB_RADIUS := 16.0
 const BLOB_POINT_COUNT := 16
 const MASS_RELEASE_AMOUNT := 1.6
+const DEATH_MODE_DURATION := 6.0
 
 var mass: float = 1.0
 var floor_contact_time: float = 0.0
 var input_enabled: bool = true
 var annihilation_perk_ready: bool = false
 var mass_release_perk_ready: bool = false
+var death_perk_ready: bool = false
+var death_mode_time_remaining: float = 0.0
+var gravity_direction: float = 1.0
 
 var _start_position := Vector2.ZERO
 var _wobble_time := 0.0
@@ -33,6 +37,8 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_wobble_time += delta
+	if death_mode_time_remaining > 0.0:
+		death_mode_time_remaining = maxf(0.0, death_mode_time_remaining - delta)
 
 	if not input_enabled:
 		velocity = velocity.move_toward(Vector2.ZERO, BASE_DRAG * 100.0 * delta)
@@ -45,14 +51,15 @@ func _physics_process(delta: float) -> void:
 	var gravity_factor := 1.0 + (mass - 1.0) * 0.035
 
 	velocity += input_vector * BASE_ACCELERATION * control_factor * delta
-	velocity.y += BASE_GRAVITY * gravity_factor * delta
+	velocity.y += BASE_GRAVITY * gravity_factor * gravity_direction * delta
 
 	var drag_strength := BASE_DRAG if input_vector.is_zero_approx() else BASE_DRAG * 0.35
 	velocity = velocity.lerp(Vector2.ZERO, minf(drag_strength * delta, 1.0))
 
 	move_and_slide()
 
-	if is_on_floor():
+	var is_on_gravity_surface: bool = is_on_floor() if gravity_direction > 0.0 else is_on_ceiling()
+	if is_on_gravity_surface:
 		floor_contact_time += delta
 		_wobble_impulse = maxf(_wobble_impulse, minf(absf(velocity.y) / 850.0, 0.45))
 	else:
@@ -65,7 +72,8 @@ func _physics_process(delta: float) -> void:
 
 
 func absorb_dot(amount: float = 1.0) -> void:
-	mass += amount
+	if not is_death_mode_active():
+		mass += amount
 	_wobble_impulse = minf(_wobble_impulse + 0.38, 1.15)
 	_update_visual_scale()
 
@@ -102,10 +110,49 @@ func consume_mass_release_perk() -> bool:
 	return true
 
 
+func grant_death_perk() -> void:
+	death_perk_ready = true
+	_wobble_impulse = minf(_wobble_impulse + 0.45, 1.15)
+
+
+func has_death_perk() -> bool:
+	return death_perk_ready
+
+
+func consume_death_perk() -> bool:
+	if not death_perk_ready:
+		return false
+	death_perk_ready = false
+	return true
+
+
+func activate_death_mode() -> void:
+	death_mode_time_remaining = DEATH_MODE_DURATION
+	_wobble_impulse = minf(_wobble_impulse + 0.65, 1.15)
+
+
+func is_death_mode_active() -> bool:
+	return death_mode_time_remaining > 0.0
+
+
+func set_death_mode_visual_active(active: bool) -> void:
+	blob_visual.color = Color(0, 0, 0, 1) if active else Color(1, 1, 1, 1)
+
+
 func release_mass() -> void:
 	mass = maxf(1.0, mass - MASS_RELEASE_AMOUNT)
 	_wobble_impulse = minf(_wobble_impulse + 0.45, 1.15)
 	_update_visual_scale()
+
+
+func toggle_gravity() -> void:
+	gravity_direction *= -1.0
+	_wobble_impulse = minf(_wobble_impulse + 0.55, 1.15)
+	velocity.y = -velocity.y * 0.55
+
+
+func is_gravity_reversed() -> bool:
+	return gravity_direction < 0.0
 
 
 func reset_blob(position_value: Vector2) -> void:
@@ -114,11 +161,15 @@ func reset_blob(position_value: Vector2) -> void:
 	input_enabled = true
 	annihilation_perk_ready = false
 	mass_release_perk_ready = false
+	death_perk_ready = false
+	death_mode_time_remaining = 0.0
+	gravity_direction = 1.0
 	velocity = Vector2.ZERO
 	_last_velocity = Vector2.ZERO
 	_wobble_impulse = 0.0
 	global_position = position_value
 	_update_visual_scale()
+	set_death_mode_visual_active(false)
 	_update_blob_visual(0.0, Vector2.ZERO)
 
 
@@ -127,11 +178,12 @@ func set_input_enabled(enabled: bool) -> void:
 
 
 func is_defeated() -> bool:
-	if not is_on_floor() or floor_contact_time < FLOOR_GRACE_TIME:
+	var is_on_gravity_surface: bool = is_on_floor() if gravity_direction > 0.0 else is_on_ceiling()
+	if not is_on_gravity_surface or floor_contact_time < FLOOR_GRACE_TIME:
 		return false
 
-	var upward_recovery := BASE_ACCELERATION / sqrt(1.0 + (mass - 1.0) * 0.45) - BASE_GRAVITY * (1.0 + (mass - 1.0) * 0.035)
-	return mass >= DEFEAT_MASS_THRESHOLD and upward_recovery < RECOVERY_ACCEL_THRESHOLD
+	var recovery_acceleration := BASE_ACCELERATION / sqrt(1.0 + (mass - 1.0) * 0.45) - BASE_GRAVITY * (1.0 + (mass - 1.0) * 0.035)
+	return mass >= DEFEAT_MASS_THRESHOLD and recovery_acceleration < RECOVERY_ACCEL_THRESHOLD
 
 
 func _update_visual_scale() -> void:
