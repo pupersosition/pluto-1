@@ -5,10 +5,10 @@ signal closed(warp: Node)
 
 const PULL_RADIUS := 1400.0
 const CORE_RADIUS := 24.0
-const PLAYER_PULL_STRENGTH := 1450.0
+const PLAYER_PULL_STRENGTH := 1950.0
 const ENEMY_PULL_STRENGTH := 3000.0
 const POWERUP_PULL_STRENGTH := 2200.0
-const MAX_PLAYER_PULL := 900.0
+const MAX_PLAYER_PULL := 1250.0
 const MAX_ENEMY_PULL := 2200.0
 const MAX_POWERUP_PULL := 1600.0
 const PULL_FALLOFF_POWER := 2.35
@@ -165,7 +165,12 @@ func _apply_to_powerups(main: Node, delta: float) -> void:
 		if distance <= CORE_RADIUS:
 			powerup_node.queue_free()
 			continue
-		_apply_direct_pull(powerup_node, POWERUP_PULL_STRENGTH, distance, delta, MAX_POWERUP_PULL)
+		if powerup_node.has_method("apply_warp_suction"):
+			var pull_amount := _calculate_pull_amount(POWERUP_PULL_STRENGTH, distance)
+			pull_amount = minf(pull_amount, MAX_POWERUP_PULL)
+			powerup_node.call("apply_warp_suction", global_position, pull_amount, delta)
+		else:
+			_apply_direct_pull(powerup_node, POWERUP_PULL_STRENGTH, distance, delta, MAX_POWERUP_PULL)
 
 
 func _apply_pull(node: Node2D, strength: float, distance: float, delta: float, max_pull: float = -1.0) -> void:

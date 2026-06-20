@@ -7,6 +7,7 @@ const TURN_RATE := 3.2
 const TARGET_ACQUIRE_DISTANCE := 380.0
 const TARGET_ESCAPE_DISTANCE := 520.0
 const DEATH_MODE_FLEE_SPEED_MULTIPLIER := 0.45
+const DEATH_MODE_MASS_DROP_FEEDBACK_SCRIPT := preload("res://scripts/death_mode_mass_drop_feedback.gd")
 
 var target: Node2D
 var speed: float = 125.0
@@ -85,7 +86,22 @@ func _is_target_death_mode_active() -> bool:
 	return target != null and is_instance_valid(target) and target.has_method("is_death_mode_active") and bool(target.call("is_death_mode_active"))
 
 
+func _spawn_death_mode_mass_drop_feedback(origin: Vector2) -> void:
+	var feedback := DEATH_MODE_MASS_DROP_FEEDBACK_SCRIPT.new() as Node2D
+	var scene_root := get_tree().current_scene
+	if scene_root != null:
+		scene_root.add_child(feedback)
+	else:
+		get_parent().add_child(feedback)
+	feedback.call("play", origin)
+
+
 func _on_body_entered(body: Node) -> void:
 	if body.has_method("absorb_dot"):
-		body.call("absorb_dot", absorb_amount)
+		var eaten_position := global_position
+		if body.has_method("is_death_mode_active") and bool(body.call("is_death_mode_active")) and body.has_method("drop_mass_from_death_mode_dot"):
+			body.call("drop_mass_from_death_mode_dot")
+			_spawn_death_mode_mass_drop_feedback(eaten_position)
+		else:
+			body.call("absorb_dot", absorb_amount)
 		queue_free()

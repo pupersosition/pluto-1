@@ -149,6 +149,12 @@ func release_mass() -> void:
 	_update_visual_scale()
 
 
+func drop_mass_from_death_mode_dot() -> void:
+	mass = maxf(1.0, mass - MASS_RELEASE_AMOUNT)
+	_wobble_impulse = minf(_wobble_impulse + 0.45, 1.15)
+	_update_visual_scale()
+
+
 func toggle_gravity() -> void:
 	gravity_direction *= -1.0
 	_wobble_impulse = minf(_wobble_impulse + 0.55, 1.15)
@@ -197,6 +203,12 @@ func set_vacuum_pull(source_position: Vector2, strength: float) -> void:
 
 func consume_by_warp() -> void:
 	_is_consumed_by_warp = true
+	input_enabled = false
+	velocity = Vector2.ZERO
+	blob_visual.visible = false
+
+
+func collapse_for_game_over() -> void:
 	input_enabled = false
 	velocity = Vector2.ZERO
 	blob_visual.visible = false

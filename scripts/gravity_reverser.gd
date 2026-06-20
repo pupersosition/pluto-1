@@ -4,9 +4,13 @@ const PIXEL := 4.0
 const RING_DOT_COUNT := 18
 const RING_RADIUS := 24.0
 const OUTER_RING_RADIUS := 34.0
+const MAGNET_RADIUS := 70.0
+const COLLECT_RADIUS := 18.0
+const MAGNET_SPEED := 420.0
 
 var _time := 0.0
 var _base_position := Vector2.ZERO
+var _magnet_target: Node2D
 
 
 func _ready() -> void:
@@ -16,7 +20,9 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
-	position.y = _base_position.y + sin(_time * 2.4) * 4.0
+	_update_magnet_pickup(delta)
+	if _magnet_target == null:
+		position.y = _base_position.y + sin(_time * 2.4) * 4.0
 	queue_redraw()
 
 
@@ -65,7 +71,56 @@ func _draw_pixel(center: Vector2, pixel_size: float, color: Color) -> void:
 	draw_rect(Rect2(center - Vector2.ONE * pixel_size * 0.5, Vector2.ONE * pixel_size), color)
 
 
-func _on_body_entered(body: Node) -> void:
+func apply_warp_suction(warp_position: Vector2, pull_amount: float, delta: float) -> void:
+	var pull_direction := global_position.direction_to(warp_position)
+	var pulled_global_position := global_position + pull_direction * pull_amount * delta
+	var parent_node: Node = get_parent()
+	if parent_node is Node2D:
+		var parent_2d := parent_node as Node2D
+		_base_position = parent_2d.to_local(pulled_global_position)
+	else:
+		_base_position = pulled_global_position
+	position = _base_position
+
+
+func _update_magnet_pickup(delta: float) -> void:
+	if _magnet_target == null or not is_instance_valid(_magnet_target):
+		_magnet_target = _find_magnet_target()
+	if _magnet_target == null:
+		return
+
+	var distance := global_position.distance_to(_magnet_target.global_position)
+	if distance > MAGNET_RADIUS:
+		_magnet_target = null
+		return
+	if distance <= COLLECT_RADIUS:
+		_collect(_magnet_target)
+		return
+
+	var pulled_global_position := global_position.move_toward(_magnet_target.global_position, MAGNET_SPEED * delta)
+	var parent_node: Node = get_parent()
+	if parent_node is Node2D:
+		var parent_2d := parent_node as Node2D
+		_base_position = parent_2d.to_local(pulled_global_position)
+	else:
+		_base_position = pulled_global_position
+	position = _base_position
+
+
+func _find_magnet_target() -> Node2D:
+	var player_node := get_tree().get_first_node_in_group("player")
+	if player_node is Node2D:
+		var player_2d := player_node as Node2D
+		if global_position.distance_to(player_2d.global_position) <= MAGNET_RADIUS:
+			return player_2d
+	return null
+
+
+func _collect(body: Node) -> void:
 	if body.has_method("toggle_gravity"):
 		body.call("toggle_gravity")
 		queue_free()
+
+
+func _on_body_entered(body: Node) -> void:
+	_collect(body)

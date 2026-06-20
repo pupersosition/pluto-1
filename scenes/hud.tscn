@@ -45,7 +45,7 @@ offset_top = 220.0
 offset_right = 846.0
 offset_bottom = 372.0
 theme_override_colors/font_color = Color(0.86, 0.86, 0.86, 1)
-text = "CONTROLS\nArrow keys / D-pad: move the blob\nSpace: activate collected perk\nR: restart after collapse\n\nCollect stars and black holes for perks.\nAvoid growing too heavy."
+text = "CONTROLS\nArrow keys / D-pad: move the blob\nR: restart after collapse\n\nCollect stars and black holes to trigger perks instantly.\nAvoid growing too heavy."
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -79,7 +79,7 @@ offset_top = 76.0
 offset_right = 370.0
 offset_bottom = 108.0
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-text = "ANNIHILATION READY - SPACE"
+text = "ANNIHILATION READY"
 
 [node name="MassReleaseLabel" type="Label" parent="."]
 visible = false
@@ -88,7 +88,7 @@ offset_top = 108.0
 offset_right = 390.0
 offset_bottom = 140.0
 theme_override_colors/font_color = Color(0.35, 0.9, 1, 1)
-text = "MASS RELEASE READY - SPACE"
+text = "MASS RELEASE READY"
 
 [node name="DeathModeLabel" type="Label" parent="."]
 visible = false
@@ -97,7 +97,22 @@ offset_top = 140.0
 offset_right = 390.0
 offset_bottom = 172.0
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-text = "DEATH MODE READY - SPACE"
+text = "DEATH MODE READY"
+
+[node name="PerkPopupLabel" type="Label" parent="."]
+visible = false
+offset_left = 226.0
+offset_top = 168.0
+offset_right = 926.0
+offset_bottom = 232.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 3
+theme_override_constants/shadow_offset_y = 3
+theme_override_font_sizes/font_size = 42
+text = "ANNIHILATION!!!"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="RestartLabel" type="Label" parent="."]
 visible = false

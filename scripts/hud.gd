@@ -9,7 +9,10 @@ signal start_game_requested
 @onready var annihilation_label: Label = $AnnihilationLabel
 @onready var mass_release_label: Label = $MassReleaseLabel
 @onready var death_mode_label: Label = $DeathModeLabel
+@onready var perk_popup_label: Label = $PerkPopupLabel
 @onready var restart_label: Label = $RestartLabel
+
+var _perk_popup_sequence := 0
 
 
 func _ready() -> void:
@@ -44,6 +47,7 @@ func set_inverted_colors(active: bool) -> void:
 	annihilation_label.add_theme_color_override("font_color", primary)
 	mass_release_label.add_theme_color_override("font_color", Color(0, 0.25, 0.38, 1) if active else Color(0.35, 0.9, 1, 1))
 	death_mode_label.add_theme_color_override("font_color", primary)
+	perk_popup_label.add_theme_color_override("font_color", primary)
 	restart_label.add_theme_color_override("font_color", primary)
 
 
@@ -55,6 +59,16 @@ func show_start_screen(visible_state: bool) -> void:
 
 func show_restart_prompt(visible_state: bool) -> void:
 	restart_label.visible = visible_state
+
+
+func show_perk_popup(value: String) -> void:
+	_perk_popup_sequence += 1
+	var sequence := _perk_popup_sequence
+	perk_popup_label.text = value
+	perk_popup_label.visible = true
+	await get_tree().create_timer(1.0).timeout
+	if sequence == _perk_popup_sequence:
+		perk_popup_label.visible = false
 
 
 func _on_start_button_pressed() -> void:

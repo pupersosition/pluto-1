@@ -25,7 +25,7 @@ const MAX_POWERUPS_ON_SCREEN := 3
 const SMART_ENEMY_START_TIME := 10.0
 const SMART_ENEMY_MAX_CHANCE := 0.22
 const MASS_RELEASE_POWERUP_CHANCE := 0.34
-const DEATH_SKULL_POWERUP_CHANCE := 0.18
+const DEATH_SKULL_POWERUP_CHANCE := 0.34
 const ANNIHILATION_POWERUP_CHANCE := 0.30
 const GRAVITY_REVERSER_POWERUP_CHANCE := 0.18
 const GRAVITY_REVERSER_HEAVY_CHANCE := 0.72
@@ -46,6 +46,7 @@ const RECORD_SAVE_PATH := "user://record.cfg"
 @onready var shockwave_blast: Node2D = $BlastLayer/ShockwaveBlast
 @onready var mass_release_burst: Node2D = $BlastLayer/MassReleaseBurst
 @onready var gravity_flip_effect: Node2D = $BlastLayer/GravityFlipEffect
+@onready var collapse_burst: Node2D = $BlastLayer/CollapseBurst
 @onready var hud: Node = $HUD
 
 var elapsed_time := 0.0
@@ -80,14 +81,13 @@ func _process(delta: float) -> void:
 			hud.call("set_record_text", "BEST %.1f" % record_time)
 		_update_perk_hud()
 
-		if Input.is_action_just_pressed("activate_perk"):
-			_try_activate_perk()
+		_try_activate_perk()
 
 		_check_gravity_flip_effect()
 		_check_death_mode_visuals()
 
 		if player.has_method("is_defeated") and bool(player.call("is_defeated")):
-			_game_over()
+			_game_over(true)
 	elif Input.is_action_just_pressed("restart"):
 		_restart_run()
 
@@ -141,7 +141,7 @@ func _random_warp_position() -> Vector2:
 
 func _on_warp_player_consumed() -> void:
 	if is_playing:
-		_game_over()
+		_game_over(false)
 
 
 func _on_warp_closed(warp: Node) -> void:
@@ -289,7 +289,7 @@ func _on_start_game_requested() -> void:
 	_restart_run()
 
 
-func _game_over() -> void:
+func _game_over(play_collapse_animation: bool = false) -> void:
 	is_playing = false
 	_save_record_time()
 	spawn_timer.stop()
@@ -305,11 +305,26 @@ func _game_over() -> void:
 		mass_release_burst.call("stop")
 	if gravity_flip_effect.has_method("stop"):
 		gravity_flip_effect.call("stop")
+	if collapse_burst.has_method("stop"):
+		collapse_burst.call("stop")
 	_last_death_mode_active = false
 	_apply_death_mode_visuals(false)
 	if player.has_method("set_input_enabled"):
 		player.call("set_input_enabled", false)
-	hud.call("show_restart_prompt", true)
+
+	if play_collapse_animation:
+		var gravity_direction := 1.0
+		var gravity_direction_value: Variant = player.get("gravity_direction")
+		if gravity_direction_value != null:
+			gravity_direction = float(gravity_direction_value)
+		if player.has_method("collapse_for_game_over"):
+			player.call("collapse_for_game_over")
+		if collapse_burst.has_method("play_burst"):
+			collapse_burst.call("play_burst", player.global_position, gravity_direction, player.scale)
+		await get_tree().create_timer(0.58).timeout
+
+	if not is_playing:
+		hud.call("show_restart_prompt", true)
 
 
 func _try_activate_perk() -> void:
@@ -329,6 +344,8 @@ func _try_activate_annihilation() -> bool:
 	for dot in dots_root.get_children():
 		dot.queue_free()
 	_play_annihilation_blast()
+	if hud.has_method("show_perk_popup"):
+		hud.call("show_perk_popup", "ANNIHILATION!!!")
 	_update_perk_hud()
 	return true
 
@@ -342,6 +359,8 @@ func _try_activate_mass_release() -> bool:
 	if player.has_method("release_mass"):
 		player.call("release_mass")
 	_play_mass_release_burst()
+	if hud.has_method("show_perk_popup"):
+		hud.call("show_perk_popup", "MASS DROPPED!!!")
 	_update_perk_hud()
 	return true
 
@@ -354,6 +373,8 @@ func _try_activate_death_mode() -> bool:
 
 	if player.has_method("activate_death_mode"):
 		player.call("activate_death_mode")
+	if hud.has_method("show_perk_popup"):
+		hud.call("show_perk_popup", "EAT THEM ALL!!!")
 	_update_perk_hud()
 	_check_death_mode_visuals()
 	return true
@@ -380,6 +401,8 @@ func _check_gravity_flip_effect() -> void:
 	_last_gravity_reversed = is_reversed
 	if gravity_flip_effect.has_method("play"):
 		gravity_flip_effect.call("play", player.global_position)
+	if hud.has_method("show_perk_popup"):
+		hud.call("show_perk_popup", "GRAVITY FLIPPED!!!")
 
 
 func _check_death_mode_visuals() -> void:

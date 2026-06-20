@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/player_blob.tscn" id="2_player_blob"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/shockwave_blast.gd" id="4_blast"]
 [ext_resource type="Script" path="res://scripts/mass_release_burst.gd" id="5_mass_burst"]
 [ext_resource type="Script" path="res://scripts/gravity_flip_effect.gd" id="6_gravity_effect"]
+[ext_resource type="Script" path="res://scripts/collapse_burst.gd" id="7_collapse_burst"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_floor"]
 size = Vector2(1152, 32)
@@ -93,3 +94,7 @@ script = ExtResource("5_mass_burst")
 [node name="GravityFlipEffect" type="Node2D" parent="BlastLayer"]
 visible = false
 script = ExtResource("6_gravity_effect")
+
+[node name="CollapseBurst" type="Node2D" parent="BlastLayer"]
+visible = false
+script = ExtResource("7_collapse_burst")
