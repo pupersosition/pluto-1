@@ -177,6 +177,11 @@ func set_input_enabled(enabled: bool) -> void:
 	input_enabled = enabled
 
 
+func apply_external_force(force: Vector2, delta: float) -> void:
+	velocity += force * delta
+	_wobble_impulse = maxf(_wobble_impulse, minf(force.length() / 2200.0, 0.32))
+
+
 func is_defeated() -> bool:
 	var is_on_gravity_surface: bool = is_on_floor() if gravity_direction > 0.0 else is_on_ceiling()
 	if not is_on_gravity_surface or floor_contact_time < FLOOR_GRACE_TIME:

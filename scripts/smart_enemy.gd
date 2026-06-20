@@ -18,6 +18,7 @@ var absorb_amount: float = 0.75
 var _lifetime := 0.0
 var _has_entered_arena := false
 var _direction := Vector2.ZERO
+var _external_velocity := Vector2.ZERO
 var _cloud_wait := 4.0
 var _cloud_timer := 0.0
 var _rng := RandomNumberGenerator.new()
@@ -57,7 +58,8 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var movement_speed: float = speed * DEATH_MODE_FLEE_SPEED_MULTIPLIER if _is_target_death_mode_active() else speed
-	global_position += _direction * movement_speed * delta
+	global_position += (_direction * movement_speed + _external_velocity) * delta
+	_external_velocity = _external_velocity.move_toward(Vector2.ZERO, movement_speed * 2.8 * delta)
 	rotation = _direction.angle()
 
 	if ARENA_RECT.has_point(global_position):
@@ -70,6 +72,10 @@ func _process(delta: float) -> void:
 	var pulse: float = (sin(_lifetime * 9.0) + 1.0) * 0.5
 	visual.scale = Vector2.ONE * (1.0 + pulse * 0.1)
 	visual.color = Color(0, 0, 0, 1) if _is_target_death_mode_active() else Color(1, 0.08, 0.08, 1)
+
+
+func apply_external_force(force: Vector2, delta: float) -> void:
+	_external_velocity += force * delta
 
 
 func _is_target_death_mode_active() -> bool:

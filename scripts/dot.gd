@@ -17,6 +17,7 @@ var homing_delay: float = 0.0
 var _lifetime := 0.0
 var _has_entered_arena := false
 var _direction := Vector2.ZERO
+var _external_velocity := Vector2.ZERO
 var _homing_enabled := false
 
 @onready var visual: Polygon2D = $DotVisual
@@ -63,7 +64,8 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var movement_speed: float = speed * DEATH_MODE_FLEE_SPEED_MULTIPLIER if _is_target_death_mode_active() else speed
-	global_position += _direction * movement_speed * delta
+	global_position += (_direction * movement_speed + _external_velocity) * delta
+	_external_velocity = _external_velocity.move_toward(Vector2.ZERO, movement_speed * 2.8 * delta)
 
 	if ARENA_RECT.has_point(global_position):
 		_has_entered_arena = true
@@ -73,6 +75,10 @@ func _physics_process(delta: float) -> void:
 
 func _process(_delta: float) -> void:
 	visual.color = Color(0, 0, 0, 1) if _is_target_death_mode_active() else Color(1, 1, 1, 1)
+
+
+func apply_external_force(force: Vector2, delta: float) -> void:
+	_external_velocity += force * delta
 
 
 func _is_target_death_mode_active() -> bool:
