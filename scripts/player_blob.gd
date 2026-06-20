@@ -25,6 +25,9 @@ var _start_position := Vector2.ZERO
 var _wobble_time := 0.0
 var _wobble_impulse := 0.0
 var _last_velocity := Vector2.ZERO
+var _vacuum_pull_source := Vector2.ZERO
+var _vacuum_pull_strength := 0.0
+var _is_consumed_by_warp := false
 
 @onready var blob_visual: Polygon2D = $BlobVisual
 
@@ -37,6 +40,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_wobble_time += delta
+	_vacuum_pull_strength = move_toward(_vacuum_pull_strength, 0.0, delta * 2.6)
 	if death_mode_time_remaining > 0.0:
 		death_mode_time_remaining = maxf(0.0, death_mode_time_remaining - delta)
 
@@ -159,6 +163,8 @@ func reset_blob(position_value: Vector2) -> void:
 	mass = 1.0
 	floor_contact_time = 0.0
 	input_enabled = true
+	_is_consumed_by_warp = false
+	_vacuum_pull_strength = 0.0
 	annihilation_perk_ready = false
 	mass_release_perk_ready = false
 	death_perk_ready = false
@@ -168,6 +174,7 @@ func reset_blob(position_value: Vector2) -> void:
 	_last_velocity = Vector2.ZERO
 	_wobble_impulse = 0.0
 	global_position = position_value
+	blob_visual.visible = true
 	_update_visual_scale()
 	set_death_mode_visual_active(false)
 	_update_blob_visual(0.0, Vector2.ZERO)
@@ -180,6 +187,19 @@ func set_input_enabled(enabled: bool) -> void:
 func apply_external_force(force: Vector2, delta: float) -> void:
 	velocity += force * delta
 	_wobble_impulse = maxf(_wobble_impulse, minf(force.length() / 2200.0, 0.32))
+
+
+func set_vacuum_pull(source_position: Vector2, strength: float) -> void:
+	_vacuum_pull_source = source_position
+	_vacuum_pull_strength = maxf(_vacuum_pull_strength, clampf(strength, 0.0, 1.0))
+	_wobble_impulse = maxf(_wobble_impulse, lerpf(0.18, 0.78, _vacuum_pull_strength))
+
+
+func consume_by_warp() -> void:
+	_is_consumed_by_warp = true
+	input_enabled = false
+	velocity = Vector2.ZERO
+	blob_visual.visible = false
 
 
 func is_defeated() -> bool:
@@ -196,20 +216,33 @@ func _update_visual_scale() -> void:
 
 
 func _update_blob_visual(delta: float, input_vector: Vector2) -> void:
+	if _is_consumed_by_warp:
+		blob_visual.visible = false
+		return
+
 	_wobble_impulse = move_toward(_wobble_impulse, 0.06 if velocity.length() > 20.0 else 0.0, delta * 1.8)
 
 	var movement_direction := velocity.normalized() if velocity.length() > 1.0 else input_vector.normalized()
 	var movement_angle := movement_direction.angle() if not movement_direction.is_zero_approx() else 0.0
+	var vacuum_direction := to_local(_vacuum_pull_source).normalized()
+	var vacuum_angle := vacuum_direction.angle() if not vacuum_direction.is_zero_approx() else movement_angle
+	var stretch_angle := lerp_angle(movement_angle, vacuum_angle, _vacuum_pull_strength)
 	var speed_stretch := clampf(velocity.length() / 850.0, 0.0, 0.22)
-	var wobble_amount := 0.06 + _wobble_impulse * 0.22
+	var vacuum_stretch := _vacuum_pull_strength * 0.85
+	var shrink := lerpf(1.0, 0.54, _vacuum_pull_strength)
+	var wobble_amount := 0.06 + _wobble_impulse * 0.22 + _vacuum_pull_strength * 0.18
 	var points := PackedVector2Array()
 
 	for index in BLOB_POINT_COUNT:
 		var angle := (float(index) / float(BLOB_POINT_COUNT)) * PI * 2.0
-		var axis_stretch := cos(2.0 * (angle - movement_angle)) * speed_stretch
+		var axis_stretch := cos(2.0 * (angle - stretch_angle)) * (speed_stretch + vacuum_stretch)
+		var directional_pull := maxf(cos(angle - vacuum_angle), 0.0) * _vacuum_pull_strength * 0.7
 		var ripple := sin(_wobble_time * 8.0 + float(index) * 1.35) * wobble_amount
 		var secondary_ripple := sin(_wobble_time * 5.0 - float(index) * 0.9) * wobble_amount * 0.45
-		var radius := BLOB_RADIUS * (1.0 + axis_stretch + ripple + secondary_ripple)
-		points.append(Vector2(cos(angle), sin(angle)) * radius)
+		var radius := BLOB_RADIUS * shrink * (1.0 + axis_stretch + directional_pull + ripple + secondary_ripple)
+		points.append(Vector2(cos(angle), sin(angle)) * maxf(radius, BLOB_RADIUS * 0.18))
 
 	blob_visual.polygon = points
+	var visual_color := blob_visual.color
+	visual_color.a = lerpf(1.0, 0.28, _vacuum_pull_strength)
+	blob_visual.color = visual_color

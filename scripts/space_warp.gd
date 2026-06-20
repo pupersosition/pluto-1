@@ -5,10 +5,10 @@ signal closed(warp: Node)
 
 const PULL_RADIUS := 1400.0
 const CORE_RADIUS := 24.0
-const PLAYER_PULL_STRENGTH := 1100.0
+const PLAYER_PULL_STRENGTH := 1750.0
 const ENEMY_PULL_STRENGTH := 3600.0
 const POWERUP_PULL_STRENGTH := 2800.0
-const MAX_PLAYER_PULL := 760.0
+const MAX_PLAYER_PULL := 1250.0
 const PULL_FALLOFF_POWER := 1.75
 const MIN_DISTANCE_PULL_FACTOR := 0.12
 const LIFETIME_RAMP_IN_FRACTION := 0.32
@@ -122,9 +122,14 @@ func _apply_to_player(main: Node, delta: float) -> void:
 	if distance > PULL_RADIUS:
 		return
 	if distance <= CORE_RADIUS:
+		if player.has_method("consume_by_warp"):
+			player.call("consume_by_warp")
 		player_consumed.emit()
 		return
 	_apply_pull(player, PLAYER_PULL_STRENGTH, distance, delta, MAX_PLAYER_PULL)
+	if player.has_method("set_vacuum_pull"):
+		var pull_ratio := _calculate_pull_amount(PLAYER_PULL_STRENGTH, distance) / MAX_PLAYER_PULL
+		player.call("set_vacuum_pull", global_position, clampf(pull_ratio, 0.0, 1.0))
 
 
 func _apply_to_enemies(main: Node, delta: float) -> void:
