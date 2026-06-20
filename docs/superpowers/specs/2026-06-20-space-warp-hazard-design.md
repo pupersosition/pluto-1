@@ -2,7 +2,7 @@
 
 ## Overview
 
-Add a timed space warp hazard to the arena. A warp opens at a random fixed location, warns the player before activating, then vacuums the player and enemies toward its center. Enemies are pulled much more easily than the player. Anything that reaches the core is consumed: enemies disappear, and the player loses the run.
+Add a timed space warp hazard to the arena. A warp opens at a random fixed location, warns the player before activating, then vacuums the player, enemies, and powerups toward its center. Enemies and powerups are pulled much more easily than the player. Anything that reaches the core is consumed: enemies and powerups disappear, and the player loses the run.
 
 ## Gameplay Behavior
 
@@ -18,10 +18,12 @@ Add a timed space warp hazard to the arena. A warp opens at a random fixed locat
   - no suction is applied
 - Active phase:
   - warp remains fixed in place
-  - player and enemies inside the pull radius are pulled toward the center
-  - player pull starts mild and is configurable
-  - enemies use a stronger pull multiplier because they have lower mass
-  - enemies reaching the core are removed
+  - player, enemies, and powerups across the whole arena are pulled toward the center
+  - attraction is weak far away and stronger near the core
+  - attraction ramps up after activation, peaks mid-life, and drops near closing
+  - player pull is aggressive but capped so escape remains possible
+  - enemies and powerups use stronger pull multipliers because they have lower mass
+  - enemies and powerups reaching the core are removed
   - player reaching the core triggers game over
 - Warp closes automatically after its active duration.
 - Warps are cleared on start screen, restart, and game over.
@@ -40,7 +42,7 @@ Add a self-contained hazard scene:
 - pixel-art funnel/vortex visuals
 - pull radius and core radius
 - suction force calculation
-- consuming enemies at the core
+- consuming enemies and powerups at the core
 - emitting a signal when the player reaches the core
 - emitting a signal when the warp closes
 
@@ -81,9 +83,14 @@ In `space_warp.gd`:
 - `PLAYER_PULL_STRENGTH`
 - `ENEMY_PULL_STRENGTH`
 - `PULL_FALLOFF_POWER`
+- `MIN_DISTANCE_PULL_FACTOR`
+- `LIFETIME_RAMP_IN_FRACTION`
+- `LIFETIME_RAMP_OUT_FRACTION`
+- `MAX_PLAYER_PULL`
+- `POWERUP_PULL_STRENGTH`
 - visual animation constants
 
-The initial feel should be mild for the player: noticeable drift that requires correction, but not an immediate death sentence unless the player stays close to the core.
+The updated feel should be arena-wide and more aggressive: the player always feels the warp, the pull becomes dangerous near the center, and escape is still possible because player pull is capped and the warp weakens near the end of its life.
 
 ## Visual Design
 

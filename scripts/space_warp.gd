@@ -3,11 +3,18 @@ extends Node2D
 signal player_consumed
 signal closed(warp: Node)
 
-const PULL_RADIUS := 240.0
+const PULL_RADIUS := 1400.0
 const CORE_RADIUS := 24.0
-const PLAYER_PULL_STRENGTH := 420.0
-const ENEMY_PULL_STRENGTH := 1500.0
-const PULL_FALLOFF_POWER := 1.45
+const PLAYER_PULL_STRENGTH := 1100.0
+const ENEMY_PULL_STRENGTH := 3600.0
+const POWERUP_PULL_STRENGTH := 2800.0
+const MAX_PLAYER_PULL := 760.0
+const PULL_FALLOFF_POWER := 1.75
+const MIN_DISTANCE_PULL_FACTOR := 0.12
+const LIFETIME_RAMP_IN_FRACTION := 0.32
+const LIFETIME_RAMP_OUT_FRACTION := 0.24
+const LIFETIME_START_MULTIPLIER := 0.35
+const LIFETIME_END_MULTIPLIER := 0.18
 const PIXEL_COUNT := 26
 const RING_COUNT := 4
 const PIXEL_SIZE := 5.0
@@ -66,8 +73,9 @@ func _build_visuals() -> void:
 
 func _update_visuals() -> void:
 	var phase_scale: float = 1.0 if _is_active else clampf(_age / maxf(warning_duration, 0.01), 0.15, 1.0)
+	var active_intensity: float = _get_lifetime_power_multiplier() if _is_active else phase_scale
 	var spin: float = Time.get_ticks_msec() / 1000.0
-	var pulse: float = 0.88 + sin(spin * 8.0) * 0.08
+	var pulse: float = 0.88 + sin(spin * 8.0) * (0.06 + active_intensity * 0.08)
 
 	for ring_index in _rings.size():
 		var ring := _rings[ring_index]
@@ -79,7 +87,8 @@ func _update_visuals() -> void:
 			var squash: float = 0.46 + ring_index * 0.08
 			points.append(Vector2(cos(angle) * radius, sin(angle) * radius * squash))
 		ring.points = points
-		ring.default_color = Color(0.42, 0.08, 0.72, 0.55) if not _is_active else Color(0.72, 0.28, 1.0, 0.78)
+		var ring_alpha: float = 0.55 if not _is_active else lerpf(0.42, 0.88, active_intensity)
+		ring.default_color = Color(0.42, 0.08, 0.72, ring_alpha) if not _is_active else Color(0.72, 0.28, 1.0, ring_alpha)
 
 	for index in _pixels.size():
 		var pixel := _pixels[index]
@@ -88,8 +97,8 @@ func _update_visuals() -> void:
 		var radius: float = lerpf(110.0, 16.0, t) * phase_scale
 		var funnel_y: float = sin(angle + spin * 3.0) * radius * 0.36
 		pixel.position = Vector2(cos(angle) * radius, funnel_y) - pixel.size * 0.5
-		pixel.color = Color(0.22, 0.02, 0.34, 0.9) if not _is_active else Color(0.78, 0.42, 1.0, 0.95)
-		pixel.scale = Vector2.ONE * lerpf(0.8, 1.5, 1.0 - t)
+		pixel.color = Color(0.22, 0.02, 0.34, 0.9) if not _is_active else Color(0.78, 0.42, 1.0, lerpf(0.62, 1.0, active_intensity))
+		pixel.scale = Vector2.ONE * lerpf(0.8, 1.5 + active_intensity * 0.35, 1.0 - t)
 
 
 func _apply_suction(delta: float) -> void:
@@ -102,6 +111,7 @@ func _apply_suction(delta: float) -> void:
 
 	_apply_to_player(main, delta)
 	_apply_to_enemies(main, delta)
+	_apply_to_powerups(main, delta)
 
 
 func _apply_to_player(main: Node, delta: float) -> void:
@@ -114,7 +124,7 @@ func _apply_to_player(main: Node, delta: float) -> void:
 	if distance <= CORE_RADIUS:
 		player_consumed.emit()
 		return
-	_apply_pull(player, PLAYER_PULL_STRENGTH, distance, delta)
+	_apply_pull(player, PLAYER_PULL_STRENGTH, distance, delta, MAX_PLAYER_PULL)
 
 
 func _apply_to_enemies(main: Node, delta: float) -> void:
@@ -134,10 +144,54 @@ func _apply_to_enemies(main: Node, delta: float) -> void:
 		_apply_pull(enemy_node, ENEMY_PULL_STRENGTH, distance, delta)
 
 
-func _apply_pull(node: Node2D, strength: float, distance: float, delta: float) -> void:
+func _apply_to_powerups(main: Node, delta: float) -> void:
+	var powerups_root := main.get_node_or_null("Powerups")
+	if powerups_root == null:
+		return
+	for powerup in powerups_root.get_children():
+		if not is_instance_valid(powerup) or not powerup is Node2D:
+			continue
+		var powerup_node := powerup as Node2D
+		var distance := global_position.distance_to(powerup_node.global_position)
+		if distance > PULL_RADIUS:
+			continue
+		if distance <= CORE_RADIUS:
+			powerup_node.queue_free()
+			continue
+		_apply_direct_pull(powerup_node, POWERUP_PULL_STRENGTH, distance, delta)
+
+
+func _apply_pull(node: Node2D, strength: float, distance: float, delta: float, max_pull: float = -1.0) -> void:
 	if not node.has_method("apply_external_force"):
 		return
-	var distance_factor := 1.0 - clampf(distance / PULL_RADIUS, 0.0, 1.0)
-	var pull_amount := strength * pow(distance_factor, PULL_FALLOFF_POWER)
+	var pull_amount := _calculate_pull_amount(strength, distance)
+	if max_pull > 0.0:
+		pull_amount = minf(pull_amount, max_pull)
 	var pull_direction := node.global_position.direction_to(global_position)
 	node.call("apply_external_force", pull_direction * pull_amount, delta)
+
+
+func _apply_direct_pull(node: Node2D, strength: float, distance: float, delta: float) -> void:
+	var pull_amount := _calculate_pull_amount(strength, distance)
+	var pull_direction := node.global_position.direction_to(global_position)
+	node.global_position += pull_direction * pull_amount * delta
+
+
+func _calculate_pull_amount(strength: float, distance: float) -> float:
+	var distance_factor := 1.0 - clampf(distance / PULL_RADIUS, 0.0, 1.0)
+	var proximity_factor := MIN_DISTANCE_PULL_FACTOR + (1.0 - MIN_DISTANCE_PULL_FACTOR) * pow(distance_factor, PULL_FALLOFF_POWER)
+	return strength * proximity_factor * _get_lifetime_power_multiplier()
+
+
+func _get_lifetime_power_multiplier() -> float:
+	var progress := clampf(_age / maxf(active_duration, 0.01), 0.0, 1.0)
+	if progress < LIFETIME_RAMP_IN_FRACTION:
+		var ramp_in_t := progress / LIFETIME_RAMP_IN_FRACTION
+		return lerpf(LIFETIME_START_MULTIPLIER, 1.0, ramp_in_t)
+
+	var ramp_out_start := 1.0 - LIFETIME_RAMP_OUT_FRACTION
+	if progress > ramp_out_start:
+		var ramp_out_t := (progress - ramp_out_start) / LIFETIME_RAMP_OUT_FRACTION
+		return lerpf(1.0, LIFETIME_END_MULTIPLIER, ramp_out_t)
+
+	return 1.0
