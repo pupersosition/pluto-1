@@ -60,6 +60,8 @@ shape = SubResource("RectangleShape2D_wall_right")
 
 [node name="Powerups" type="Node2D" parent="."]
 
+[node name="Warps" type="Node2D" parent="."]
+
 [node name="PlayerBlob" parent="." instance=ExtResource("2_player_blob")]
 position = Vector2(576, 300)
 
@@ -70,6 +72,10 @@ wait_time = 1.25
 [node name="PowerupTimer" type="Timer" parent="."]
 one_shot = true
 wait_time = 12.0
+
+[node name="WarpTimer" type="Timer" parent="."]
+one_shot = true
+wait_time = 18.0
 
 [node name="HUD" parent="." instance=ExtResource("3_hud")]
 

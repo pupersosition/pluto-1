@@ -6,6 +6,7 @@ const ANNIHILATION_STAR_SCENE := preload("res://scenes/annihilation_star.tscn")
 const MASS_RELEASE_STAR_SCENE := preload("res://scenes/mass_release_star.tscn")
 const GRAVITY_REVERSER_SCENE := preload("res://scenes/gravity_reverser.tscn")
 const DEATH_SKULL_SCENE := preload("res://scenes/death_skull.tscn")
+const SPACE_WARP_SCENE := preload("res://scenes/space_warp.tscn")
 const ARENA_SIZE := Vector2(1152.0, 648.0)
 const SPAWN_MARGIN := 32.0
 const POWERUP_SPAWN_MARGIN := 70.0
@@ -14,6 +15,12 @@ const INITIAL_SPAWN_WAIT := 1.25
 const MIN_SPAWN_WAIT := 0.28
 const SPAWN_RAMP_SECONDS := 75.0
 const POWERUP_SPAWN_WAIT := 12.0
+const WARP_SPAWN_WAIT_MIN := 18.0
+const WARP_SPAWN_WAIT_MAX := 35.0
+const WARP_WARNING_DURATION := 2.0
+const WARP_ACTIVE_DURATION_MIN := 7.0
+const WARP_ACTIVE_DURATION_MAX := 10.0
+const WARP_SPAWN_MARGIN := 120.0
 const MAX_POWERUPS_ON_SCREEN := 3
 const SMART_ENEMY_START_TIME := 10.0
 const SMART_ENEMY_MAX_CHANCE := 0.22
@@ -32,8 +39,10 @@ const RECORD_SAVE_PATH := "user://record.cfg"
 @onready var player: Node2D = $PlayerBlob
 @onready var spawn_timer: Timer = $SpawnTimer
 @onready var powerup_timer: Timer = $PowerupTimer
+@onready var warp_timer: Timer = $WarpTimer
 @onready var dots_root: Node2D = $Dots
 @onready var powerups_root: Node2D = $Powerups
+@onready var warps_root: Node2D = $Warps
 @onready var shockwave_blast: Node2D = $BlastLayer/ShockwaveBlast
 @onready var mass_release_burst: Node2D = $BlastLayer/MassReleaseBurst
 @onready var gravity_flip_effect: Node2D = $BlastLayer/GravityFlipEffect
@@ -43,6 +52,7 @@ var elapsed_time := 0.0
 var record_time := 0.0
 var is_playing := false
 var has_started := false
+var current_warp: Node2D
 var _last_gravity_reversed := false
 var _last_death_mode_active := false
 var rng := RandomNumberGenerator.new()
@@ -53,6 +63,7 @@ func _ready() -> void:
 	_load_record_time()
 	spawn_timer.timeout.connect(_on_spawn_timer_timeout)
 	powerup_timer.timeout.connect(_on_powerup_timer_timeout)
+	warp_timer.timeout.connect(_on_warp_timer_timeout)
 	hud.connect("start_game_requested", _on_start_game_requested)
 	_show_start_screen()
 
@@ -96,6 +107,55 @@ func _on_powerup_timer_timeout() -> void:
 
 	_spawn_powerup()
 	powerup_timer.start()
+
+
+func _on_warp_timer_timeout() -> void:
+	if not is_playing or current_warp != null:
+		return
+	_spawn_warp()
+
+
+func _schedule_next_warp() -> void:
+	warp_timer.stop()
+	warp_timer.wait_time = rng.randf_range(WARP_SPAWN_WAIT_MIN, WARP_SPAWN_WAIT_MAX)
+	warp_timer.start()
+
+
+func _spawn_warp() -> void:
+	var warp := SPACE_WARP_SCENE.instantiate() as Node2D
+	current_warp = warp
+	warp.global_position = _random_warp_position()
+	if warp.has_method("configure"):
+		warp.call("configure", WARP_WARNING_DURATION, rng.randf_range(WARP_ACTIVE_DURATION_MIN, WARP_ACTIVE_DURATION_MAX))
+	warp.connect("player_consumed", _on_warp_player_consumed)
+	warp.connect("closed", _on_warp_closed)
+	warps_root.add_child(warp)
+
+
+func _random_warp_position() -> Vector2:
+	return Vector2(
+		rng.randf_range(WARP_SPAWN_MARGIN, ARENA_SIZE.x - WARP_SPAWN_MARGIN),
+		rng.randf_range(WARP_SPAWN_MARGIN, ARENA_SIZE.y - WARP_SPAWN_MARGIN)
+	)
+
+
+func _on_warp_player_consumed() -> void:
+	if is_playing:
+		_game_over()
+
+
+func _on_warp_closed(warp: Node) -> void:
+	if current_warp == warp:
+		current_warp = null
+	if is_playing:
+		_schedule_next_warp()
+
+
+func _clear_warps() -> void:
+	warp_timer.stop()
+	current_warp = null
+	for warp in warps_root.get_children():
+		warp.queue_free()
 
 
 func _spawn_dot() -> void:
@@ -194,6 +254,7 @@ func _show_start_screen() -> void:
 	is_playing = false
 	spawn_timer.stop()
 	powerup_timer.stop()
+	_clear_warps()
 	hud.call("set_time_text", "TIME 0.0")
 	hud.call("set_record_text", "BEST %.1f" % record_time)
 	hud.call("set_annihilation_ready", false)
@@ -233,6 +294,7 @@ func _game_over() -> void:
 	_save_record_time()
 	spawn_timer.stop()
 	powerup_timer.stop()
+	_clear_warps()
 	for dot in dots_root.get_children():
 		dot.queue_free()
 	for powerup in powerups_root.get_children():
@@ -387,6 +449,7 @@ func _restart_run() -> void:
 		dot.queue_free()
 	for powerup in powerups_root.get_children():
 		powerup.queue_free()
+	_clear_warps()
 
 	if player.has_method("reset_blob"):
 		player.call("reset_blob", PLAYER_START)
@@ -397,3 +460,4 @@ func _restart_run() -> void:
 	spawn_timer.start()
 	powerup_timer.wait_time = POWERUP_SPAWN_WAIT
 	powerup_timer.start()
+	_schedule_next_warp()
